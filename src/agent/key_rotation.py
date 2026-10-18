@@ -1,9 +1,11 @@
 """
 Gemini API Key Rotator
 ──────────────────────
-Cycles through all available GEMINI_API_KEY_N keys in round-robin order.
-On a rate-limit or quota error, automatically advances to the next key
-so the agent keeps running through demos and testing without interruption.
+Cycles through available Gemini keys in round-robin order.
+Accepts either:
+  - GEMINI_API_KEY          (single key)
+  - GEMINI_API_KEY_1 … _N   (rotation pool)
+  - GOOGLE_API_KEY          (alias)
 """
 
 import os
@@ -12,20 +14,32 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Load all keys from environment ────────────────────────────────────────────
+
 def _load_keys() -> list[str]:
-    keys = []
+    keys: list[str] = []
+
+    # Numbered keys first (rotation pool)
     i = 1
     while True:
         key = os.getenv(f"GEMINI_API_KEY_{i}")
         if not key:
             break
-        keys.append(key.strip())
+        key = key.strip()
+        if key:
+            keys.append(key)
         i += 1
+
+    # Single-key fallbacks
+    for env_name in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        key = os.getenv(env_name)
+        if key and key.strip() and key.strip() not in keys:
+            keys.append(key.strip())
+
     if not keys:
         raise EnvironmentError(
             "No Gemini API keys found. "
-            "Set GEMINI_API_KEY_1 … GEMINI_API_KEY_N in your .env file."
+            "Set GEMINI_API_KEY or GEMINI_API_KEY_1 … GEMINI_API_KEY_N "
+            "in your environment / Render secrets."
         )
     return keys
 
@@ -37,7 +51,7 @@ class KeyRotator:
         self._keys = _load_keys()
         self._index = 0
         self._lock = threading.Lock()
-        print(f"[KeyRotator] Loaded {len(self._keys)} Gemini API keys.")
+        print(f"[KeyRotator] Loaded {len(self._keys)} Gemini API key(s).")
 
     @property
     def current(self) -> str:
@@ -59,7 +73,6 @@ class KeyRotator:
         return len(self._keys)
 
 
-# ── Module-level singleton ─────────────────────────────────────────────────────
 _rotator: KeyRotator | None = None
 
 
