@@ -1,10 +1,21 @@
 from falkordb import FalkorDB
-from src.config import FALKORDB_HOST, FALKORDB_PORT, FALKORDB_GRAPH
+from src.config import (
+    FALKORDB_HOST,
+    FALKORDB_PORT,
+    FALKORDB_GRAPH,
+    FALKORDB_USERNAME,
+    FALKORDB_PASSWORD,
+)
 
 
 def get_graph():
     """Return a connected FalkorDB graph instance."""
-    db = FalkorDB(host=FALKORDB_HOST, port=FALKORDB_PORT)
+    kwargs = {"host": FALKORDB_HOST, "port": FALKORDB_PORT}
+    if FALKORDB_PASSWORD:
+        kwargs["password"] = FALKORDB_PASSWORD
+    if FALKORDB_USERNAME:
+        kwargs["username"] = FALKORDB_USERNAME
+    db = FalkorDB(**kwargs)
     return db.select_graph(FALKORDB_GRAPH)
 
 
