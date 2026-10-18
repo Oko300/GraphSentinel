@@ -1,0 +1,12 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports:
+      - "6380:6379"   # Host 6380 → Container 6379 (avoids local Redis conflict)
+      - "3000:3000"   # FalkorDB Browser
+    volumes:
+      - falkordb_data:/data
+    restart: unless-stopped
+
+volumes:
+  falkordb_data:
