@@ -8,14 +8,25 @@ from datetime import datetime, timedelta
 from faker import Faker
 from falkordb import FalkorDB
 
-from src.config import FALKORDB_HOST, FALKORDB_PORT, FALKORDB_GRAPH
+from src.config import (
+    FALKORDB_HOST,
+    FALKORDB_PORT,
+    FALKORDB_GRAPH,
+    FALKORDB_USERNAME,
+    FALKORDB_PASSWORD,
+)
 
 fake = Faker()
 random.seed(42)  # reproducible
 
 
 def get_graph():
-    db = FalkorDB(host=FALKORDB_HOST, port=FALKORDB_PORT)
+    kwargs = {"host": FALKORDB_HOST, "port": FALKORDB_PORT}
+    if FALKORDB_PASSWORD:
+        kwargs["password"] = FALKORDB_PASSWORD
+    if FALKORDB_USERNAME:
+        kwargs["username"] = FALKORDB_USERNAME
+    db = FalkorDB(**kwargs)
     return db.select_graph(FALKORDB_GRAPH)
 
 
@@ -109,7 +120,6 @@ def plant_fraud_ring(graph, ring_prefix: str, size: int = 5):
     shared_device = f"{ring_prefix}_DEV_SHARED"
     shared_ip = f"{ring_prefix}.suspicious.ip"
 
-    # Create shared resources
     create_device(graph, shared_device, "mobile")
     create_ip(graph, shared_ip, "XX")
 
@@ -118,7 +128,6 @@ def plant_fraud_ring(graph, ring_prefix: str, size: int = 5):
         link_account_device(graph, acc, shared_device)
         link_account_ip(graph, acc, shared_ip)
 
-    # Money funneling toward the last account
     for i in range(size - 1):
         create_transaction(
             graph,
@@ -130,7 +139,6 @@ def plant_fraud_ring(graph, ring_prefix: str, size: int = 5):
         )
         create_linked_to(graph, accounts[i], accounts[-1])
 
-    # Cross links to make the ring dense
     for i in range(size):
         for j in range(i + 1, size):
             if random.random() > 0.4:
@@ -147,7 +155,6 @@ def generate_normal_accounts(graph, count: int = 40):
         create_account(graph, acc_id)
         accounts.append(acc_id)
 
-        # Some personal devices/IPs
         if random.random() > 0.3:
             dev_id = f"NORM_DEV_{i:03d}"
             create_device(graph, dev_id)
@@ -158,7 +165,6 @@ def generate_normal_accounts(graph, count: int = 40):
             create_ip(graph, ip)
             link_account_ip(graph, acc_id, ip)
 
-    # A few normal transfers
     for _ in range(30):
         src, dst = random.sample(accounts, 2)
         create_transaction(
@@ -175,6 +181,7 @@ def generate_normal_accounts(graph, count: int = 40):
 
 def main():
     print("Connecting to FalkorDB...")
+    print(f"  host={FALKORDB_HOST} port={FALKORDB_PORT} user={FALKORDB_USERNAME}")
     graph = get_graph()
 
     print("Clearing existing data...")
@@ -187,7 +194,6 @@ def main():
     ring1 = plant_fraud_ring(graph, "RING_A", size=6)
     ring2 = plant_fraud_ring(graph, "RING_B", size=4)
 
-    # Make one normal account slightly connected for interesting demos
     create_linked_to(graph, normal[0], ring1[0])
 
     print("\n✅ Data generation complete!")
